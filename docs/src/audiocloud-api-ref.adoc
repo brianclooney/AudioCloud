@@ -1,0 +1,473 @@
+= Audio Cloud API Reference
+:toc: left
+:toclevels: 4
+:icons: font
+:revdate: {localdate}
+:revnumber: v1.0.0
+
+== Introduction
+
+This document outlines the API specification for the Audio Cloud. The Audio Cloud API allows users to upload, manage, and access playlists, tracks, and podcast feeds. It also provides metrics to monitor usage.
+
+* **Playlists Management**: Create, delete, and retrieve playlists.
+* **Track Management**: Upload, list, and search tracks.
+* **Podcast RSS Feed**: Generate RSS feeds for podcast platforms.
+* **Metrics**: Monitor API usage with Prometheus metrics.
+
+== Playlists
+
+// ==================== GET PLAYLISTS ====================
+
+=== Get Playlists
+
+.Request
+* **URL**: `/api/playlists`
+* **Method**: `GET`
+* **Query Parameters**:
+  - `page` (optional): The page number to retrieve. Defaults to 1.
+  - `pageSize` (optional): The number of items to retrieve per page. Defaults to 10.
+  - `orderBy` (optional): The field to order the results by. Defaults to `createdAt`.
+  - `order` (optional): The order to sort the results by. Can be `asc` or `desc`. Defaults to `desc`.
+
+.Response
+* **Status Codes**:
+  - `200 OK`: Successfully retrieved the list of playlists.
+  - `500 Internal Server Error`: An unexpected error occurred.
+  - `503 Service Unavailable`: The service is currently unavailable.  
+* **Body Schema:**
+  ** **data**: An array of strings, each representing a playlist name.
+  ** **pagination**:
+    *** `currentPage` (`integer`): The current page number.
+    *** `pageSize` (`integer`): The number of items per page.
+    *** `totalPages` (`integer`): The total number of pages available.
+    *** `totalItems` (`integer`): The total number of playlists.
+
+.Example
+* **Request:**
++
+[source,http]
+----
+GET /api/playlists?page=2&pageSize=5&orderBy=title&order=asc
+----
+* **Response:**
++
+[source,json]
+----
+HTTP/1.1 200 OK
+
+{
+    "data": [
+        "2024-03-21",
+        "2024-03-22",
+        "2024-04-05",
+        "October 1, 2024",
+        "November Session"
+    ],
+    "pagination": {
+        "currentPage": 2,
+        "pageSize": 5,
+        "totalPages": 4,
+        "totalItems": 20
+    }
+}
+----
+
+
+// ==================== FETCH PLAYLIST ====================
+
+=== Fetch playlist
+
+.Request
+* **URL**: `/api/playlists/{playlistName}`
+* **Method**: `GET`
+* **Path Parameters**:
+  - `playlistName` (required): The name of the playlist to retrieve.
+
+.Response
+* **Status Codes**:
+  - `200 OK`: Successfully retrieved the playlist.
+  - `400 Bad Request`: Invalid or missing playlist name.
+  - `404 Not Found`: The specified playlist does not exist.
+  - `500 Internal Server Error`: An unexpected error occurred.
+  - `503 Service Unavailable`: The service is currently unavailable.
+* **Body Schema:**
+  ** An array of objects, each representing a track:
+    *** `ordinalNumber` (`integer`): The position of the track in a playlist.
+    *** `date` (`string`, format: `YYYY-MM-DD`): Date of the playlist session.
+    *** `title` (`string`): Title of the track.
+    *** `duration` (`integer`): The duration of the track in seconds.
+    *** `url` (`string`, format: `uri`): URL to access the track recording.
+
+.Example
+* **Request:**
++
+[source,http]
+----
+GET /api/playlists/2024-03-21
+----
+* **Response:**
++
+[source,json]
+----
+HTTP/1.1 200 OK
+
+[
+    {
+        "ordinalNumber": 1,
+        "date": "2024-03-21",
+        "title": "Morning Practice",
+        "duration": 265,
+        "url": "http://example.com/static/morning_practice.mp3"
+    },
+    {
+        "ordinalNumber": 2,
+        "date": "2024-03-21",
+        "title": "Evening Jam",
+        "duration": 312,
+        "url": "http://example.com/static/evening_jam.mp3"
+    }
+]
+----
+
+// ==================== DELETE PLAYLIST ====================
+
+=== Delete playlist
+
+.Request
+* **URL**: `/api/playlist/{playlistName}`
+* **Method**: `DELETE`
+* **Path Parameters**:
+  - `playlistName` (required): The name of the playlist to retrieve.
+
+.Response
+* **Status Codes**:
+  - `204 No Content`: Successfully removed the playlist.
+  - `400 Bad Request`: Invalid or missing playlist name.
+  - `404 Not Found`: The specified playlist does not exist.
+  - `500 Internal Server Error`: An unexpected error occurred.
+  - `503 Service Unavailable`: The service is currently unavailable.
+
+.Example
+* **Request:**
++
+[source,http]
+----
+DELETE /api/playlists/2024-03-21
+----
+* **Response:**
++
+[source,http]
+----
+HTTP/1.1 204 No Content
+----
+
+// ==================== UPLOAD TRACKS FOR PLAYLIST ====================
+
+=== Upload tracks for playlist
+
+.Request
+* **URL**: `/api/playlists`
+* **Method**: `POST`
+* **Headers**:
+  - `Content-Type`: multipart/form-data
+
+.Response
+* **Status Codes**:
+  - `201 Created`: Successfully uploaded and processed the recordings. (No response body)
+  - `400 Bad Request`: The zip file could not be parsed or is missing.
+  - `500 Internal Server Error`: An unexpected error occurred.
+  - `503 Service Unavailable`: The service is currently unavailable.
+* **Body Schema:**
+  ** A binary zip file containing:
+    *** Track recordings (audio files).
+    *** Metadata for each track (e.g., title, duration).
+
+.Example
+* **Request:**
++
+[source,http]
+----
+POST /api/playlists
+Content-Type: multipart/form-data
+
+<binary zip file>
+----
+* **Response:**
++
+[source,http]
+----
+HTTP/1.1 201 Created
+----
+
+== Tracks
+
+// ==================== Get TRACK NAMES ====================
+
+=== Get Track Names
+
+.Request
+* **URL**: `/api/tracks/names`
+* **Method**: `GET`
+* **Query Parameters**:
+  - `search` (optional): Search term for filtering track names (partial match).
+  - `page` (optional): The page number to retrieve. Defaults to 1.
+  - `pageSize` (optional): The number of items to retrieve per page. Defaults to 10.
+  - `orderBy` (optional): The field to order the results by (e.g., `title`, `createdAt`). Defaults to `createdAt`.
+  - `order` (optional): The order to sort the results by. Can be `asc` or `desc`. Defaults to `desc`.
+
+.Response
+* **Status Codes**:
+  - `200 OK`: Successfully retrieved the list of unique track names.
+  - `400 Bad Request`: Invalid query parameters.
+  - `500 Internal Server Error`: An unexpected error occurred.
+  - `503 Service Unavailable`: The service is currently unavailable.
+* **Body Schema:**
+  ** **data**: An array of strings representing a unique track title.
+  ** **pagination**:
+    *** `currentPage` (`integer`): The current page number.
+    *** `pageSize` (`integer`): The number of items per page.
+    *** `totalPages` (`integer`): The total number of pages available.
+    *** `totalItems` (`integer`): The total number of tracks.
+
+.Example
+* **Request:**
++
+[source,http]
+----
+GET /api/tracks/names?search=e&page=2&pageSize=5&orderBy=title&order=asc
+----
+* **Response**:
++
+[source,json]
+----
+HTTP/1.1 200 OK
+
+{
+    "data": [
+        "Morning Practice",
+        "Evening Jam",
+        "Special Guest Session"
+    ],
+    "pagination": {
+        "currentPage": 2,
+        "pageSize": 5,
+        "totalPages": 4,
+        "totalItems": 20
+    }
+}
+----
+
+// ==================== SEARCH FOR TRACKS ====================
+
+=== Search For Tracks (By Name)
+
+.Request
+* **URL**: `/api/tracks`
+* **Method**: `GET`
+* **Query Parameters**:
+  - `name`: Filter term for track names (supports partial match).
+
+.Response
+* **Status Codes**:
+  - `200 OK`: Successfully retrieved the list of tracks.
+  - `400 Bad Request`: Invalid query parameter.
+  - `500 Internal Server Error`: An unexpected error occurred.
+  - `503 Service Unavailable`: The service is currently unavailable.
+* **Body Schema:**
+  ** An array of objects, each representing a track:
+    *** `ordinalNumber` (`integer`): The position of the track in a playlist.
+    *** `date` (`string`, format: `YYYY-MM-DD`): Date of the playlist session.
+    *** `title` (`string`): Title of the track.
+    *** `duration` (`integer`): The duration of the track in seconds.
+    *** `url` (`string`, format: `uri`): URL to access the track recording.
+
+.Example
+* **Request:**
++
+[source,http]
+----
+GET /api/tracks?name=Jam
+----
+* **Response**:
++
+[source,json]
+----
+HTTP/1.1 200 OK
+
+[
+    {
+        "ordinalNumber": 1,
+        "date": "2024-03-21",
+        "title": "Morning Jam",
+        "duration": 265,
+        "url": "http://example.com/static/morning_practice.mp3"
+    },
+    {
+        "ordinalNumber": 2,
+        "date": "2024-03-21",
+        "title": "Evening Jam",
+        "duration": 312,
+        "url": "http://example.com/static/evening_jam.mp3"
+    }
+]
+----
+
+// ==================== PODCAST RSS FEED ====================
+
+== RSS Feed
+
+.Request
+* **URL**: `/rss`
+* **Method**: `GET`
+
+.Response
+* **Status Codes**:
+  - `200 OK`: Successfully generated and returned the podcast RSS feed.
+  - `500 Internal Server Error`: An unexpected error occurred.
+  - `503 Service Unavailable`: The service is currently unavailable.
+* **Headers**:
+  - `Content-Type`: application/rss+xml
+* **Body Schema:**
+  ** An XML structure conforming to the following RSS format:
+    *** `<rss>`: Root element with version attribute and multiple XML namespaces.
+    *** `<channel>`: Contains podcast metadata such as:
+      **** `title`: Podcast title.
+      **** `link`: URL to the podcast homepage.
+      **** `description`: Description of the podcast.
+      **** `language`: Language code.
+      **** `<itunes:author>`: Name or organization responsible for the podcast.
+      **** `<itunes:category>`: Category under which the podcast is listed.
+      **** `<atom:link>`: URL to the RSS feed itself.
+      **** `<image>`: Podcast cover image details.
+    *** `<item>`: Represents individual podcast episodes, each with:
+      **** `title`: Episode title.
+      **** `description`: Summary of the episode.
+      **** `pubDate`: Publication date in RFC-822 format.
+      **** `link`: URL to the specific episode page.
+      **** `guid`: Unique identifier for the episode.
+      **** `<itunes:author>`: Episode author.
+      **** `<itunes:summary>`: Summary of the episode.
+      **** `<enclosure>`: Audio file details, including URL, type, and size.
+      **** `<podcast:chapters>`: Optional chapter markers with titles and timestamps.
+
+.Example
+* **Request:**
++
+[source,http]
+----
+GET /rss
+----
+* **Response**:
++
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:atom="http://www.w3.org/2005/Atom"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/">
+
+<channel>
+    <title>Your Podcast Title</title>
+    <link>http://example.com/podcasts</link>
+    <description>This is a description of your podcast, covering various topics and featuring multiple songs per episode.</description>
+    <language>en-us</language>
+    <itunes:author>Your Name or Organization</itunes:author>
+    <itunes:category text="Music"/>
+    <atom:link href="http://example.com/podcasts/rss.xml" rel="self" type="application/rss+xml" />
+    <image>
+        <url>http://example.com/podcasts/cover.jpg</url>
+        <title>Your Podcast Title</title>
+        <link>http://example.com/podcasts</link>
+    </image>
+
+    <item>
+        <title>Episode on 2024-03-21</title>
+        <description>This episode features a series of songs recorded on March 21, 2024.</description>
+        <pubDate>Thu, 21 Mar 2024 00:00:00 GMT</pubDate>
+        <link>http://example.com/podcasts/2024-03-21</link>
+        <guid isPermaLink="false">uuid:1234-5678-2024-03-21</guid>
+        <itunes:author>Your Name or Organization</itunes:author>
+        <itunes:summary>This episode includes a special selection of songs recorded live on March 21, 2024.</itunes:summary>
+        <enclosure url="http://example.com/static/recordings/2024-03-21.mp3" type="audio/mpeg" length="12345678"/>
+        <podcast:chapters>
+            <podcast:chapter startTime="00:00:00" title="Introduction"/>
+            <podcast:chapter startTime="00:01:45" title="Song 1 Title"/>
+            <podcast:chapter startTime="00:04:30" title="Song 2 Title"/>
+            <!-- More chapter entries as needed -->
+        </podcast:chapters>
+    </item>
+
+    <!-- Additional <item> entries for other episodes -->
+
+</channel>
+</rss>
+----
+
+// ==================== PROMETHEUS METRICS ====================
+
+== Prometheus Metrics
+
+.Request
+* **URL**: `/metrics`
+* **Method**: `GET`
+
+.Response
+* **Status Codes**:
+  - `200 OK`: Successfully retrieved the service metrics.
+  - `500 Internal Server Error`: An unexpected error occurred.
+  - `503 Service Unavailable`: The service is currently unavailable.
+* **Headers**:
+  - `Content-Type`: text/plain; version=0.0.4
+
+.Example
+* **Request:**
++
+[source,http]
+----
+GET /metrics
+----
+* **Response**:
++
+[source,text]
+----
+# HELP http_requests_total The total number of HTTP requests.
+# TYPE http_requests_total counter
+http_requests_total{method="post",code="200"} 1027 1395066363000
+
+# HELP tracks_total The total number of tracks available.
+# TYPE tracks_total gauge
+tracks_total 520
+
+# HELP tracks_accessed_total The total number of tracks that have been accessed at least once.
+# TYPE tracks_accessed_total counter
+tracks_accessed_total 415
+
+# HELP session_dates_total The total number of unique session dates for all tracks.
+# TYPE session_dates_total gauge
+session_dates_total 365
+
+# HELP tracks_per_session_average The average number of tracks accessed per session/date.
+# TYPE tracks_per_session_average gauge
+tracks_per_session_average 5.7
+----
+
+// ==================== SERVE STATIC RECORDINGS ====================
+
+== Serve Static Files
+
+.Request
+* **URL**: `/static/{filename}`
+* **Method**: `GET`
+* **Description**: Access or download a specific MP3 file. Replace `{filename}` with the actual name of the MP3 file you wish to access.
+
+.Response
+* **Status Codes**:
+  - `200 OK`: The requested MP3 file is successfully returned.
+  - `404 Not Found`: No recording was found matching the provided filename.
+* **Headers**:
+  - `Content-Type`: audio/mpeg
+* **Body Schema**: 
+  ** The binary data of the MP3 file.
+
