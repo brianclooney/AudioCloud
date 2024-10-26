@@ -1,2 +1,11 @@
 
 docs/build
+
+src/API/bin
+src/API/obj
+
+src/API.Tests/bin
+src/API.Tests/obj
+
+src/Shared/bin
+src/Shared/obj
