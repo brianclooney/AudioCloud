@@ -1,7 +1,14 @@
 using AudioCloud.API.Data;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Set up Serilog
+builder.Logging.ClearProviders();
+builder.Logging.AddSerilog(new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .CreateLogger());
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
