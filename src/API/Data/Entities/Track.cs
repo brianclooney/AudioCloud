@@ -1,4 +1,4 @@
-
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AudioCloud.API.Data.Entities
@@ -13,16 +13,19 @@ namespace AudioCloud.API.Data.Entities
         /// <summary>
         /// The title of the track.
         /// </summary>
+        [MaxLength(128)]
         public string Title { get; set; } = string.Empty;
 
         /// <summary>
         ///  Notes about the track.
         /// </summary>
+        [MaxLength(256)]
         public string? Notes { get; set; } = string.Empty;
 
         /// <summary>
         ///  The file path where the track is stored.
         /// </summary>
+        [MaxLength(256)]
         public string FilePath { get; set; } = string.Empty;
 
         /// <summary>

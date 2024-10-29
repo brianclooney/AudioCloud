@@ -1,6 +1,12 @@
+using AudioCloud.API.Configuration;
 using AudioCloud.API.Data;
+using AudioCloud.API.Data.Entities;
+using AudioCloud.API.Extensions;
+using AudioCloud.API.Services;
 using AudioCloud.Shared.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AudioCloud.API.Controllers
 {
@@ -12,14 +18,27 @@ namespace AudioCloud.API.Controllers
     public class PlaylistsController : ControllerBase
     {
         private readonly AudioCloudDbContext _context;
+        private readonly ILogger<PlaylistsController> _logger;
+        private readonly IPlaylistExtractionService _playlistExtractionService;
+        private readonly IFileService _fileService;
+        private readonly UrlOptions _urlOptions;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PlaylistsController"/> class.
         /// </summary>
         /// <param name="context">An instance of <see cref="AudioCloudDbContext"/>.</param>
-        public PlaylistsController(AudioCloudDbContext context)
+        public PlaylistsController(
+            AudioCloudDbContext context, 
+            ILogger<PlaylistsController> logger, 
+            IPlaylistExtractionService playlistExtractionService,
+            IFileService fileService,
+            IOptions<UrlOptions> urlOptions)
         {
             _context = context;
+            _logger = logger;
+            _playlistExtractionService = playlistExtractionService;
+            _fileService = fileService;
+            _urlOptions = urlOptions.Value;
         }
 
         /// <summary>
@@ -27,20 +46,45 @@ namespace AudioCloud.API.Controllers
         /// </summary>
         /// <returns>The playlist names with pagination.</returns>
         [HttpGet]
-        public ActionResult<PaginationResponseDto<string>> GetPlaylistNames(int? page = null, int? pageSize = null)
+        public ActionResult<CollectionResponseDto<string>> GetPlaylistNames(int? page = null, int? pageSize = null, string? orderBy = "name", string? order = "desc")
         {
             if (page.HasValue ^ pageSize.HasValue)
             {
                 return BadRequest("Both page and pageSize must be provided.");
             }
 
-            var names = _context.Playlists
+            // Validate 'orderBy' parameter
+            if (orderBy != "name" && orderBy != "date")
+            {
+                return BadRequest("Invalid orderBy parameter. Must be 'name'.");
+            }
+
+            // Validate 'order' parameter
+            if (order != "asc" && order != "desc")
+            {
+                return BadRequest("Invalid order parameter. Must be 'asc' or 'desc'.");
+            }
+
+            // Initialize the query
+            IQueryable<Playlist> query = _context.Playlists;
+
+            // Apply ordering
+            if (orderBy == "name")
+            {
+                query = order == "asc" ? query.OrderBy(p => p.Name) : query.OrderByDescending(p => p.Name);
+            }
+            else
+            {
+                query = order == "asc" ? query.OrderBy(p => p.CreatedAt) : query.OrderByDescending(p => p.CreatedAt);
+            }
+
+            var names = query
                 .Select(p => p.Name)
                 .ToList();
 
             if (!pageSize.HasValue)
             {
-                return Ok(new PaginationResponseDto<string> { Data = names });
+                return Ok(new CollectionResponseDto<string> { Data = names });
             }
 
             var pagedNames = names
@@ -48,15 +92,18 @@ namespace AudioCloud.API.Controllers
                 .Take(pageSize.Value)
                 .ToList();
 
-            return Ok(new PaginationResponseDto<string>
+            return Ok(new CollectionResponseDto<string>
             {
                 Data = pagedNames,
-                Pagination = new PaginationInfo
+                Info = new CollectionInfo
                 {
-                    CurrentPage = page.Value,
-                    PageSize = pagedNames.Count,
-                    TotalPages = (int)Math.Ceiling((double)names.Count / pageSize.Value),
-                    TotalItems = names.Count
+                    Pagination = new PaginationInfo
+                    {
+                        CurrentPage = page.Value,
+                        PageSize = pagedNames.Count,
+                        TotalPages = (int)Math.Ceiling((double)names.Count / pageSize.Value),
+                        TotalItems = names.Count
+                    }
                 }
             });
         }
@@ -67,22 +114,29 @@ namespace AudioCloud.API.Controllers
         /// <param name="playlistName">The name of the playlist.</param>
         /// <returns>The tracks for the playlist.</returns>
         [HttpGet("{playlistName}")]
-        public ActionResult<List<TrackResponseDto>> GetTracks(string playlistName)
+        public ActionResult<CollectionResponseDto<TrackResponseDto>> GetTracks(string playlistName)
         {
-            var tracks = _context.Tracks
-                .Where(t => t.Playlist.Name == playlistName)
-                .Select(t => new TrackResponseDto
-                {
-                    Id = t.Id,
-                    OrdinalNumber = t.OrdinalNumber,
-                    Title = t.Title,
-                    Duration = t.Duration,
-                    Date = t.Date.ToShortDateString(),
-                    Url = $"/static/{t.FilePath}"
-                })
-                .ToList();
+            var playlist = _context.Playlists
+                .Include(p => p.Tracks)
+                .FirstOrDefault(p => p.Name == playlistName);
 
-            return (tracks.Count == 0) ? NotFound() : Ok(tracks);
+            if (playlist == null)
+            {
+                return NotFound();
+            }
+
+            var collection = new CollectionResponseDto<TrackResponseDto>
+            {
+                Data = playlist.Tracks.Select(t => t.ToResponseDto(_urlOptions.PathPrefix)).ToList(),
+                Info = new CollectionInfo
+                {
+                    Title = playlist.Name,
+                    Description = playlist.Notes,
+                    Date = playlist.CreatedAt.ToString("yyyy-MM-dd")
+                }
+            };
+
+            return Ok(collection);
         }
 
         /// <summary>
@@ -94,12 +148,15 @@ namespace AudioCloud.API.Controllers
         public IActionResult DeletePlaylist(string playlistName)
         {
             var playlist = _context.Playlists
+                .Include(p => p.Tracks)
                 .FirstOrDefault(p => p.Name == playlistName);
 
             if (playlist == null)
             {
                 return NotFound();
             }
+
+            playlist.Tracks.ForEach(t => _fileService.DeleteFile(t.FilePath));
 
             _context.Playlists.Remove(playlist);
 
@@ -112,11 +169,25 @@ namespace AudioCloud.API.Controllers
         /// Upload tracks for a playlist contained in zip file.
         /// </summary>
         [HttpPost]
-        public IActionResult UploadPlaylist()
+        [RequestFormLimits(MultipartBodyLengthLimit = 104857600)] // 100 MB
+        [RequestSizeLimit(104857600)] // 100 MB
+        public async Task<IActionResult> UploadPlaylist(IFormFile archive)
         {
-            var playlistName = "NewPlaylist";
-            return CreatedAtAction(nameof(GetTracks), new { playlistName }, playlistName);
-        }
+            _logger.LogInformation("PostRecordings");
+            
+	        try
+            {
+                var playlist = await _playlistExtractionService.ProcessPlaylistUpload(archive);
+                _context.Playlists.Add(playlist);
+		        _context.SaveChanges();
+                return Ok();
+		        // return CreatedAtAction(nameof(GetTracks), new { playlist.Name }, playlist.Name);
+	        }
+	        catch (ArgumentException e)
+            {
+                _logger.LogError("PostRecordings: " + e.Message);
+	            return BadRequest(new { e.Message });
+            }
+        }   
     }
-
 }

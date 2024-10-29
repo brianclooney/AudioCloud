@@ -1,4 +1,6 @@
 
+using System.ComponentModel.DataAnnotations;
+
 namespace AudioCloud.API.Data.Entities
 {
     public class Playlist
@@ -11,11 +13,13 @@ namespace AudioCloud.API.Data.Entities
         /// <summary>
         /// The name of the playlist.
         /// </summary>
+        [MaxLength(128)]
         public string Name { get; set; } = string.Empty;
 
         /// <summary>
         /// Notes about the playlist.
         /// </summary>
+        [MaxLength(256)]
         public string? Notes { get; set; }
 
         /// <summary>

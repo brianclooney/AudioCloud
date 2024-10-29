@@ -1,3 +1,4 @@
+using AudioCloud.API.Configuration;
 using AudioCloud.API.Controllers;
 using AudioCloud.API.Data;
 using AudioCloud.API.Data.Entities;
@@ -6,6 +7,7 @@ using AudioCloud.Shared.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -20,17 +22,21 @@ namespace AudioCloud.API.Tests.Controllers
         private readonly TracksController _controller;
         private readonly int _playlistCount = 7;
         private readonly int _tracksPerPlaylistCount = 14;
+        private readonly UrlOptions _urlOptions = new UrlOptions { PathPrefix = "/static" };
 
         public TracksControllerTests()
         {
             var loggerMock = new Mock<ILogger<TracksController>>();
+            var urlOptionsMock = new Mock<IOptions<UrlOptions>>();
+
+            urlOptionsMock.SetupGet(o => o.Value).Returns(_urlOptions);
 
             var options = new DbContextOptionsBuilder<AudioCloudDbContext>()
                 .UseInMemoryDatabase("TestDatabase_Tracks")
                 .Options;
 
             _context = new AudioCloudDbContext(options);
-            _controller = new TracksController(_context, loggerMock.Object);
+            _controller = new TracksController(_context, loggerMock.Object, urlOptionsMock.Object);
         }
 
         [Fact]
@@ -46,13 +52,13 @@ namespace AudioCloud.API.Tests.Controllers
         
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var response = Assert.IsType<PaginationResponseDto<string>>(okResult.Value);
+            var response = Assert.IsType<CollectionResponseDto<string>>(okResult.Value);
             Assert.Equal(pageSize, response.Data.Count);
-            Assert.NotNull(response.Pagination);
-            Assert.Equal(page, response.Pagination.CurrentPage);
-            Assert.Equal(pageSize, response.Pagination.PageSize);
-            Assert.Equal(3, response.Pagination.TotalPages);
-            Assert.Equal(_tracksPerPlaylistCount, response.Pagination.TotalItems);
+            Assert.NotNull(response.Info.Pagination);
+            Assert.Equal(page, response.Info.Pagination.CurrentPage);
+            Assert.Equal(pageSize, response.Info.Pagination.PageSize);
+            Assert.Equal(3, response.Info.Pagination.TotalPages);
+            Assert.Equal(_tracksPerPlaylistCount, response.Info.Pagination.TotalItems);
         }
 
         [Fact]
@@ -66,9 +72,10 @@ namespace AudioCloud.API.Tests.Controllers
         
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var response = Assert.IsType<PaginationResponseDto<string>>(okResult.Value);
+            var response = Assert.IsType<CollectionResponseDto<string>>(okResult.Value);
             Assert.Equal(_tracksPerPlaylistCount, response.Data.Count);
-            Assert.Null(response.Pagination);
+            // Assert.Null(response.Info);
+            Assert.Null(response.Info.Pagination);
         }
 
         [Fact]
@@ -82,8 +89,8 @@ namespace AudioCloud.API.Tests.Controllers
         
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var response = Assert.IsType<List<TrackResponseDto>>(okResult.Value);
-            Assert.Equal(_playlistCount, response.Count);
+            var response = Assert.IsType<CollectionResponseDto<TrackResponseDto>>(okResult.Value);
+            Assert.Equal(_playlistCount, response.Data.Count);
         }
 
         [Fact]
@@ -97,8 +104,8 @@ namespace AudioCloud.API.Tests.Controllers
         
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var response = Assert.IsType<List<TrackResponseDto>>(okResult.Value);
-            Assert.Equal(_playlistCount * _tracksPerPlaylistCount, response.Count);
+            var response = Assert.IsType<CollectionResponseDto<TrackResponseDto>>(okResult.Value);
+            Assert.Equal(_playlistCount * _tracksPerPlaylistCount, response.Data.Count);
         }
 
         [Fact]
@@ -112,8 +119,8 @@ namespace AudioCloud.API.Tests.Controllers
         
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var response = Assert.IsType<List<TrackResponseDto>>(okResult.Value);
-            Assert.Empty(response);
+            var response = Assert.IsType<CollectionResponseDto<TrackResponseDto>>(okResult.Value);
+            Assert.Empty(response.Data);
         }
     }
 }
