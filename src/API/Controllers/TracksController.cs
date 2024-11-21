@@ -92,7 +92,7 @@ namespace AudioCloud.API.Controllers
 
             var tracks = _context.Tracks
                 .Where(t => t.Title.Contains(search))
-                .Select(t => t.ToResponseDto(_urlOptions.PathPrefix))
+                .Select(t => t.ToResponseDto($"{_urlOptions.BaseAddress}{_urlOptions.PathPrefix}"))
                 .ToList();
 
             if (!pageSize.HasValue)

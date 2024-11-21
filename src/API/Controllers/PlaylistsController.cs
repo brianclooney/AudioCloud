@@ -135,7 +135,7 @@ namespace AudioCloud.API.Controllers
 
             var collection = new CollectionResponseDto<TrackResponseDto>
             {
-                Data = playlist.Tracks.Select(t => t.ToResponseDto(_urlOptions.PathPrefix)).ToList(),
+                Data = playlist.Tracks.Select(t => t.ToResponseDto($"{_urlOptions.BaseAddress}{_urlOptions.PathPrefix}")).ToList(),
                 Info = new CollectionInfo
                 {
                     Title = playlist.Name,
