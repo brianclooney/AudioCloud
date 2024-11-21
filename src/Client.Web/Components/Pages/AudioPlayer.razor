@@ -1,0 +1,105 @@
+@rendermode InteractiveServer
+
+@using AudioCloud.Client.Web.Models
+
+@implements IDisposable
+
+@inject IJSRuntime JS
+@inject RecordingsState RecordingsState
+@inject ILogger<AudioPlayer> Logger
+
+<div class="card">
+    <audio id="audioPlayer" controls>
+        <source src="@AudioSource" type="audio/mpeg" />
+        Your browser does not support the audio element
+    </audio>
+</div>
+
+<script>
+
+    function initAudio(dotNetObject) {
+        const audioPlayer = document.getElementById('audioPlayer');
+        if (audioPlayer) {
+
+            audioPlayer.addEventListener('ended', () => {
+                console.log('Audio has finished playing');
+                dotNetObject.invokeMethodAsync("NotifyAudioHasEnded");
+            });
+
+            audioPlayer.addEventListener('playing', () => {
+                console.log('Audio is playing');
+                dotNetObject.invokeMethodAsync("NotifyAudioIsPlaying");
+            });
+        }
+    }
+
+    function playAudio() {
+        const audioPlayer = document.getElementById('audioPlayer');
+        if (audioPlayer) {
+            audioPlayer.load();
+            audioPlayer.play();
+        }
+    }
+
+    function stopAudio() {
+        const audioPlayer = document.getElementById('audioPlayer');
+        if (audioPlayer) {
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
+        }
+    }
+
+</script>
+
+@code {
+
+    private string? AudioSource { get; set; }
+
+    protected override void OnInitialized()
+    {
+        RecordingsState.OnSelectedTrackChanged += HandleSelectedTrackChanged;
+        RecordingsState.OnTrackFilterChanged += HandleTrackFilterChanged;
+    }
+
+    public void Dispose()
+    {
+        RecordingsState.OnSelectedTrackChanged -= HandleSelectedTrackChanged;
+        RecordingsState.OnTrackFilterChanged -= HandleTrackFilterChanged;
+    }
+
+    private void HandleSelectedTrackChanged(object? sender, EventArgs e)
+    {
+        Logger.LogInformation($"SelectedTrack.Url={RecordingsState.SelectedTrack?.Url}");
+        AudioSource = RecordingsState.SelectedTrack == null ? null : RecordingsState.SelectedTrack.Url;
+        StateHasChanged();
+    }
+
+    private void HandleTrackFilterChanged(object? sender, EventArgs e)
+    {
+        AudioSource = null;
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("initAudio", DotNetObjectReference.Create(this));
+        }
+
+        // Logger.LogInformation($"AudioSource={AudioSource}");
+        await JS.InvokeVoidAsync(AudioSource == null ? "stopAudio" : "playAudio");
+    }
+
+    [JSInvokable]
+    public void NotifyAudioHasEnded()
+    {
+        RecordingsState.PlaybackState = PlaybackState.Complete;
+    }
+
+    [JSInvokable]
+    public void NotifyAudioIsPlaying()
+    {
+        RecordingsState.PlaybackState = PlaybackState.Playing;
+    }
+}

@@ -1,6 +1,9 @@
 
 docs/build
 
+src/Client.Web/bin
+src/Client.Web/obj
+
 src/API/bin
 src/API/obj
 

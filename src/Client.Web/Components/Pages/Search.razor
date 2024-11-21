@@ -1,0 +1,39 @@
+@rendermode InteractiveServer
+
+@using AudioCloud.Client.Web.Models
+
+@inject ILogger<Search> Logger
+@inject RecordingsState RecordingsState
+
+<div class="card">
+    <div class="card-header">
+        Search Titles
+    </div>
+    <input
+        style="margin: 10px; width: 90%"
+        type="text" 
+        placeholder="Search..." 
+        class="form-control" 
+        @bind="SearchText"
+        @oninput="OnInput"
+        @onkeydown="OnKeyDown" />
+</div>
+
+@code {
+
+    private string SearchText { get; set; } = String.Empty;
+
+    private void OnInput(ChangeEventArgs eventArgs)
+    {
+        SearchText = eventArgs.Value?.ToString() ?? String.Empty;
+    }
+
+    private void OnKeyDown(KeyboardEventArgs eventArgs)
+    {
+        if (eventArgs.Key == "Enter" && !String.IsNullOrEmpty(SearchText))
+        {
+            RecordingsState.Filter = new TrackFilter { Type = TrackFilterType.Title, Value = SearchText };
+            SearchText = String.Empty;
+        }
+    }
+}

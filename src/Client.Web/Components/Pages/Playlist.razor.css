@@ -1,0 +1,52 @@
+
+ul.track-list {
+    list-style-type: none;
+    padding: 0;
+}
+
+ul.track-list li {
+    padding: 0.5rem;
+    padding-left: 20px;
+    padding-right: 20px;
+    border-bottom: 1px solid #ddd;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #333;
+}
+
+.xlist-group-item:hover {
+    background-color: #f1f1f1;
+    color: black;
+}
+
+.xlist-group-item.selected {
+    background-color: #bc5805;
+    color: white;
+}
+
+.xlist-group-item.selected:hover {
+    background-color: #d3904d;
+    color: white;
+}
+
+.track-title {
+    flex: 1;
+}
+
+.track-duration {
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+.track-date-date {
+    display: none;
+}
+
+.track-date-title {
+    font-size: 80%;
+    padding-left: 10px;
+    color: #aaa;
+    font-style: italic;
+}

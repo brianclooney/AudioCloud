@@ -1,0 +1,73 @@
+@rendermode InteractiveServer
+
+@using AudioCloud.Client.Web.Models
+@using AudioCloud.Client.Web.Services
+
+@implements IDisposable
+
+@inject ApiService ApiService
+@inject RecordingsState RecordingsState
+@inject ILogger<DateSelector> Logger
+
+<div class="card">
+    <div class="card-header">
+        Recording Date
+    </div>
+    @if (AvailableDates == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <ul class="date-list">
+            @foreach (var date in AvailableDates)
+            {
+                <li @onclick="() => OnDateChange(date)" class="@GetItemClass(date)">
+                    @date
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+
+    private List<string>? AvailableDates;
+    private string? SelectedDate { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        RecordingsState.OnTrackFilterChanged += HandleTrackFilterChanged;
+        var dates = await ApiService.GetRecordingDatesAsync();
+        AvailableDates = dates.Data;
+    }
+
+    public void Dispose()
+    {
+        RecordingsState.OnTrackFilterChanged -= HandleTrackFilterChanged;
+    }
+
+    private void HandleTrackFilterChanged(object? sender, EventArgs e)
+    {
+        if (RecordingsState.Filter.Type != TrackFilterType.Date)
+        {
+            SelectedDate = null;
+            StateHasChanged();
+        }
+    }
+
+    private void OnDateChange(string selectedDate)
+    {
+        if (!string.IsNullOrEmpty(selectedDate))
+        {
+            SelectedDate = selectedDate;
+            RecordingsState.Filter = new TrackFilter { Value = selectedDate, Type = TrackFilterType.Date };
+        }
+    }
+
+    private string GetItemClass(string date)
+    {
+        var testFilter = new TrackFilter { Type = TrackFilterType.Date, Value = date };
+        return testFilter.Equals(RecordingsState.Filter) ? "selected" : String.Empty;
+    }
+}

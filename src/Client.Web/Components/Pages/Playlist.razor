@@ -1,0 +1,102 @@
+@rendermode InteractiveServer
+
+@using AudioCloud.Shared.DTOs
+@using AudioCloud.Client.Web.Models
+
+@implements IDisposable
+
+@inject AudioCloud.Client.Web.Services.ApiService ApiService
+@inject RecordingsState RecordingsState
+@inject ILogger<Playlist> Logger
+
+<div class="card">
+    <ul class="track-list">
+        @{ int index = 0; }
+        @foreach (var track in Tracks)
+        {
+            var localIndex = index;
+            var displayIndex = index + 1;
+            <li class="xlist-group-item @GetItemClass(localIndex)" @onclick="() => OnSelectTrack(localIndex)">
+                <span class="track-title">@displayIndex. @track.Title 
+                    <span class="track-date-@RecordingsState.Filter.Type.ToString().ToLower()">(@ConvertToLongDate(track.Date))</span>
+                </span>
+                <span class="track-duration">@FormatDuration(track.Duration)</span>
+            </li>
+            index++;
+        }
+    </ul>
+</div>
+
+@code {
+
+    private int SelectedIndex { get; set; } = -1;
+
+    private List<TrackResponseDto> Tracks { get; set; } = new List<TrackResponseDto>();
+
+    protected override void OnInitialized()
+    {
+        RecordingsState.OnTrackFilterChanged += HandleTrackFilterChanged;
+        RecordingsState.OnPlaybackStateHasChange += HandlePlaybackStateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        RecordingsState.OnTrackFilterChanged -= HandleTrackFilterChanged;
+        RecordingsState.OnPlaybackStateHasChange -= HandlePlaybackStateHasChanged;
+    }
+
+    private async void HandleTrackFilterChanged(object? sender, EventArgs e)
+    {
+        if (RecordingsState.Filter.Type == TrackFilterType.Date && !String.IsNullOrEmpty(RecordingsState.Filter.Value))
+        {
+            Tracks = (await ApiService.GetRecordingsByDate(RecordingsState.Filter.Value)).Data;
+            SelectedIndex = -1;
+            StateHasChanged();
+        }
+        else if (RecordingsState.Filter.Type == TrackFilterType.Title && !String.IsNullOrEmpty(RecordingsState.Filter.Value))
+        {
+            Tracks = (await ApiService.GetRecordingsByTitle(RecordingsState.Filter.Value)).Data;
+            SelectedIndex = -1;
+            StateHasChanged();
+        }
+    }
+
+    private void HandlePlaybackStateHasChanged(object? sender, EventArgs e)
+    {
+        if (RecordingsState.PlaybackState == PlaybackState.Complete)
+        {
+            // Move to next track
+            SelectedIndex += 1;
+            if (SelectedIndex >= Tracks.Count)
+            {
+                SelectedIndex = 0;
+            }
+            RecordingsState.SelectedTrack = Tracks[SelectedIndex];
+            StateHasChanged();
+        }
+    }
+
+    private void OnSelectTrack(int trackIndex)
+    {
+        SelectedIndex = trackIndex;
+        RecordingsState.SelectedTrack = Tracks[trackIndex];
+    }
+
+    private string GetItemClass(int index)
+    {
+        return index == SelectedIndex ? "selected" : String.Empty;
+    }
+
+    private string FormatDuration(int durationInseconds)
+    {
+        var min = durationInseconds / 60;
+        var sec = durationInseconds % 60;
+        return $"{min}:{sec:D2}";
+    }
+
+    private string ConvertToLongDate(string shortDate)
+    {
+        DateTime date = DateTime.Parse(shortDate);
+        return date.ToString("MMMM d, yyyy");
+    }
+}
