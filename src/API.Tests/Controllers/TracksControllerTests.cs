@@ -40,29 +40,7 @@ namespace AudioCloud.API.Tests.Controllers
         }
 
         [Fact]
-        public void GetTrackTitles_ShouldReturnPaginatedTrackNames_WhenPaginationQueryProvided()
-        {
-            // Arrange
-            int page = 1;
-            int pageSize = 5;
-            TestDatabaseSeeder.SeedDatabase(_context, _playlistCount, _tracksPerPlaylistCount);
-        
-            // Act
-            var result = _controller.GetTrackNames(page, pageSize);
-        
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var response = Assert.IsType<CollectionResponseDto<string>>(okResult.Value);
-            Assert.Equal(pageSize, response.Data.Count);
-            Assert.NotNull(response.Info.Pagination);
-            Assert.Equal(page, response.Info.Pagination.CurrentPage);
-            Assert.Equal(pageSize, response.Info.Pagination.PageSize);
-            Assert.Equal(3, response.Info.Pagination.TotalPages);
-            Assert.Equal(_tracksPerPlaylistCount, response.Info.Pagination.TotalItems);
-        }
-
-        [Fact]
-        public void GetTrackTitles_ShouldReturnAllTrackNames_WhenPaginationNotProvided()
+        public void GetTrackTitles_ShouldReturnAllTrackNames()
         {
             // Arrange
             TestDatabaseSeeder.SeedDatabase(_context, _playlistCount, _tracksPerPlaylistCount);
@@ -72,10 +50,8 @@ namespace AudioCloud.API.Tests.Controllers
         
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var response = Assert.IsType<CollectionResponseDto<string>>(okResult.Value);
-            Assert.Equal(_tracksPerPlaylistCount, response.Data.Count);
-            // Assert.Null(response.Info);
-            Assert.Null(response.Info.Pagination);
+            var response = Assert.IsType<List<string>>(okResult.Value);
+            Assert.Equal(_tracksPerPlaylistCount, response.Count);
         }
 
         [Fact]

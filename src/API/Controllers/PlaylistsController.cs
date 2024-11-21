@@ -27,6 +27,10 @@ namespace AudioCloud.API.Controllers
         /// Initializes a new instance of the <see cref="PlaylistsController"/> class.
         /// </summary>
         /// <param name="context">An instance of <see cref="AudioCloudDbContext"/>.</param>
+        /// <param name="logger">An instance of <see cref="ILogger{PlaylistsController}"/>.</param>
+        /// <param name="playlistExtractionService">An instance of <see cref="IPlaylistExtractionService"/>.</param>
+        /// <param name="fileService">An instance of <see cref="IFileService"/>.</param>
+        /// <param name="urlOptions">An instance of <see cref="IOptions{UrlOptions}"/>.</param>
         public PlaylistsController(
             AudioCloudDbContext context, 
             ILogger<PlaylistsController> logger, 
@@ -44,6 +48,10 @@ namespace AudioCloud.API.Controllers
         /// <summary>
         ///  Gets playlist names.
         /// </summary>
+        /// <param name="page">The page number.</param>
+        /// <param name="pageSize">The page size.</param>
+        /// <param name="orderBy">The field to order by.</param>
+        /// <param name="order">The order of the results.</param>
         /// <returns>The playlist names with pagination.</returns>
         [HttpGet]
         public ActionResult<CollectionResponseDto<string>> GetPlaylistNames(int? page = null, int? pageSize = null, string? orderBy = "name", string? order = "desc")
@@ -168,6 +176,7 @@ namespace AudioCloud.API.Controllers
         /// <summary>
         /// Upload tracks for a playlist contained in zip file.
         /// </summary>
+        /// <param name="archive">The zip file containing the tracks.</param>
         [HttpPost]
         [RequestFormLimits(MultipartBodyLengthLimit = 104857600)] // 100 MB
         [RequestSizeLimit(104857600)] // 100 MB
@@ -180,8 +189,8 @@ namespace AudioCloud.API.Controllers
                 var playlist = await _playlistExtractionService.ProcessPlaylistUpload(archive);
                 _context.Playlists.Add(playlist);
 		        _context.SaveChanges();
-                return Ok();
-		        // return CreatedAtAction(nameof(GetTracks), new { playlist.Name }, playlist.Name);
+                // return Ok();
+		        return CreatedAtAction(nameof(GetTracks), new { playlist.Name }, playlist.Name);
 	        }
 	        catch (ArgumentException e)
             {
