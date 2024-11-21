@@ -9,3 +9,6 @@ src/API.Tests/obj
 
 src/Shared/bin
 src/Shared/obj
+
+src/audio-processing/metadata
+src/audio-processing/out
