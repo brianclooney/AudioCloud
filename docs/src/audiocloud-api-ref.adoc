@@ -24,10 +24,10 @@ This document outlines the API specification for the Audio Cloud. The Audio Clou
 * **URL**: `/api/playlists`
 * **Method**: `GET`
 * **Query Parameters**:
-  - `page` (optional): The page number to retrieve. Defaults to 1.
-  - `pageSize` (optional): The number of items to retrieve per page. Defaults to 10.
-  - `orderBy` (optional): The field to order the results by. Defaults to `createdAt`.
-  - `order` (optional): The order to sort the results by. Can be `asc` or `desc`. Defaults to `desc`.
+  - `page` (optional): The page number to retrieve.
+  - `pageSize` (optional): The number of items to retrieve per page.
+  - `orderBy` (optional): The field to order the results by. Can be `name` (default) or `date`.
+  - `order` (optional): The order to sort the results by. Can be `asc` or `desc` (default).
 
 .Response
 * **Status Codes**:
@@ -36,11 +36,12 @@ This document outlines the API specification for the Audio Cloud. The Audio Clou
   - `503 Service Unavailable`: The service is currently unavailable.  
 * **Body Schema:**
   ** **data**: An array of strings, each representing a playlist name.
-  ** **pagination**:
-    *** `currentPage` (`integer`): The current page number.
-    *** `pageSize` (`integer`): The number of items per page.
-    *** `totalPages` (`integer`): The total number of pages available.
-    *** `totalItems` (`integer`): The total number of playlists.
+  ** **info**:
+    *** **pagination**:
+      **** `currentPage` (`integer`): The current page number.
+      **** `pageSize` (`integer`): The number of items per page.
+      **** `totalPages` (`integer`): The total number of pages available.
+      **** `totalItems` (`integer`): The total number of playlists.
 
 .Example
 * **Request:**
@@ -63,11 +64,13 @@ HTTP/1.1 200 OK
         "October 1, 2024",
         "November Session"
     ],
-    "pagination": {
-        "currentPage": 2,
-        "pageSize": 5,
-        "totalPages": 4,
-        "totalItems": 20
+    "info": {
+        "pagination": {
+            "currentPage": 2,
+            "pageSize": 5,
+            "totalPages": 4,
+            "totalItems": 20
+        }
     }
 }
 ----
@@ -91,12 +94,20 @@ HTTP/1.1 200 OK
   - `500 Internal Server Error`: An unexpected error occurred.
   - `503 Service Unavailable`: The service is currently unavailable.
 * **Body Schema:**
-  ** An array of objects, each representing a track:
+  ** **data**: An array of objects, each representing a track:
     *** `ordinalNumber` (`integer`): The position of the track in a playlist.
     *** `date` (`string`, format: `YYYY-MM-DD`): Date of the playlist session.
     *** `title` (`string`): Title of the track.
     *** `duration` (`integer`): The duration of the track in seconds.
     *** `url` (`string`, format: `uri`): URL to access the track recording.
+  ** **info**:
+    *** **title**: The title of the playlist
+    *** **date**: The date of the playlist
+    *** **pagination**:
+      **** `currentPage` (`integer`): The current page number.
+      **** `pageSize` (`integer`): The number of items per page.
+      **** `totalPages` (`integer`): The total number of pages available.
+      **** `totalItems` (`integer`): The total number of playlists.
 
 .Example
 * **Request:**
@@ -111,22 +122,34 @@ GET /api/playlists/2024-03-21
 ----
 HTTP/1.1 200 OK
 
-[
-    {
-        "ordinalNumber": 1,
-        "date": "2024-03-21",
-        "title": "Morning Practice",
-        "duration": 265,
-        "url": "http://example.com/static/morning_practice.mp3"
-    },
-    {
-        "ordinalNumber": 2,
-        "date": "2024-03-21",
-        "title": "Evening Jam",
-        "duration": 312,
-        "url": "http://example.com/static/evening_jam.mp3"
+{
+    "data": [
+        {
+            "ordinalNumber": 1,
+            "date": "2024-03-21",
+            "title": "Morning Practice",
+            "duration": 265,
+            "url": "http://example.com/static/morning_practice.mp3"
+        },
+        {
+            "ordinalNumber": 2,
+            "date": "2024-03-21",
+            "title": "Evening Jam",
+            "duration": 312,
+            "url": "http://example.com/static/evening_jam.mp3"
+        }
+    ],
+    "info": {
+        "title": "2024-03-21",
+        "data": "2024-03-21",
+        "pagination": {
+            "currentPage": 2,
+            "pageSize": 5,
+            "totalPages": 4,
+            "totalItems": 20
+        }
     }
-]
+}
 ----
 
 // ==================== DELETE PLAYLIST ====================
@@ -208,12 +231,6 @@ HTTP/1.1 201 Created
 .Request
 * **URL**: `/api/tracks/names`
 * **Method**: `GET`
-* **Query Parameters**:
-  - `search` (optional): Search term for filtering track names (partial match).
-  - `page` (optional): The page number to retrieve. Defaults to 1.
-  - `pageSize` (optional): The number of items to retrieve per page. Defaults to 10.
-  - `orderBy` (optional): The field to order the results by (e.g., `title`, `createdAt`). Defaults to `createdAt`.
-  - `order` (optional): The order to sort the results by. Can be `asc` or `desc`. Defaults to `desc`.
 
 .Response
 * **Status Codes**:
@@ -223,18 +240,13 @@ HTTP/1.1 201 Created
   - `503 Service Unavailable`: The service is currently unavailable.
 * **Body Schema:**
   ** **data**: An array of strings representing a unique track title.
-  ** **pagination**:
-    *** `currentPage` (`integer`): The current page number.
-    *** `pageSize` (`integer`): The number of items per page.
-    *** `totalPages` (`integer`): The total number of pages available.
-    *** `totalItems` (`integer`): The total number of tracks.
 
 .Example
 * **Request:**
 +
 [source,http]
 ----
-GET /api/tracks/names?search=e&page=2&pageSize=5&orderBy=title&order=asc
+GET /api/tracks/names
 ----
 * **Response**:
 +
@@ -242,19 +254,11 @@ GET /api/tracks/names?search=e&page=2&pageSize=5&orderBy=title&order=asc
 ----
 HTTP/1.1 200 OK
 
-{
-    "data": [
-        "Morning Practice",
-        "Evening Jam",
-        "Special Guest Session"
-    ],
-    "pagination": {
-        "currentPage": 2,
-        "pageSize": 5,
-        "totalPages": 4,
-        "totalItems": 20
-    }
-}
+[
+    "Morning Practice",
+    "Evening Jam",
+    "Special Guest Session"
+]
 ----
 
 // ==================== SEARCH FOR TRACKS ====================
@@ -265,7 +269,11 @@ HTTP/1.1 200 OK
 * **URL**: `/api/tracks`
 * **Method**: `GET`
 * **Query Parameters**:
-  - `name`: Filter term for track names (supports partial match).
+  - `search`: Filter term for track names (supports partial match).
+  - `page` (optional): The page number to retrieve.
+  - `pageSize` (optional): The number of items to retrieve per page.
+  - `orderBy` (optional): The field to order the results by. Can be `name` (default) or `date`.
+  - `order` (optional): The order to sort the results by. Can be `asc` or `desc` (default).
 
 .Response
 * **Status Codes**:
@@ -274,19 +282,26 @@ HTTP/1.1 200 OK
   - `500 Internal Server Error`: An unexpected error occurred.
   - `503 Service Unavailable`: The service is currently unavailable.
 * **Body Schema:**
-  ** An array of objects, each representing a track:
+  ** **data**: An array of objects, each representing a track:
     *** `ordinalNumber` (`integer`): The position of the track in a playlist.
     *** `date` (`string`, format: `YYYY-MM-DD`): Date of the playlist session.
     *** `title` (`string`): Title of the track.
     *** `duration` (`integer`): The duration of the track in seconds.
     *** `url` (`string`, format: `uri`): URL to access the track recording.
+  ** **info**:
+    *** **title**: The title of the playlist
+    *** **pagination**:
+      **** `currentPage` (`integer`): The current page number.
+      **** `pageSize` (`integer`): The number of items per page.
+      **** `totalPages` (`integer`): The total number of pages available.
+      **** `totalItems` (`integer`): The total number of playlists.
 
 .Example
 * **Request:**
 +
 [source,http]
 ----
-GET /api/tracks?name=Jam
+GET /api/tracks?search=Jam&page=2&pageSize=5&orderBy=title&order=asc
 ----
 * **Response**:
 +
@@ -294,22 +309,33 @@ GET /api/tracks?name=Jam
 ----
 HTTP/1.1 200 OK
 
-[
-    {
-        "ordinalNumber": 1,
-        "date": "2024-03-21",
-        "title": "Morning Jam",
-        "duration": 265,
-        "url": "http://example.com/static/morning_practice.mp3"
-    },
-    {
-        "ordinalNumber": 2,
-        "date": "2024-03-21",
-        "title": "Evening Jam",
-        "duration": 312,
-        "url": "http://example.com/static/evening_jam.mp3"
+{
+    "data": [
+        {
+            "ordinalNumber": 1,
+            "date": "2024-03-21",
+            "title": "Morning Jam",
+            "duration": 265,
+            "url": "http://example.com/static/morning_practice.mp3"
+        },
+        {
+            "ordinalNumber": 2,
+            "date": "2024-03-21",
+            "title": "Evening Jam",
+            "duration": 312,
+            "url": "http://example.com/static/evening_jam.mp3"
+        }
+    ],
+    "info": {
+        "title": "Jam",
+        "pagination": {
+            "currentPage": 2,
+            "pageSize": 5,
+            "totalPages": 4,
+            "totalItems": 20
+        }
     }
-]
+}
 ----
 
 // ==================== PODCAST RSS FEED ====================
